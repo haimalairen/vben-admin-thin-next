@@ -187,3 +187,39 @@ export function treeMapEach(
     };
   }
 }
+
+/**
+ * 递归拷贝lorealMenu生成对应路由数据结构
+ */
+type recusionReturn = Array<any> | Object | undefined;
+export function recusionMap(data): recusionReturn {
+  const newObj = Array.isArray(data) ? [] : {};
+  if (typeof data !== 'object') {
+    return;
+  }
+  for (const x in data) {
+    const newKey = x === 'childMenus' ? 'children' : x;
+    if (typeof data[x] === 'object' && data[x] !== null) {
+      newObj[newKey] = recusionMap(data[x]);
+    } else {
+      newObj[newKey] = data[x];
+      //menuNameNick 转 component，path
+      if (x === 'menuNameNick' && !data['component']) {
+        const paths = uniq(data[x].split('/'));
+        const lastPath = paths[paths.length - 1];
+        //去掉page开头
+        newObj['component'] = paths[0] === 'page' ? paths.slice(1).join('/') : paths.join('/');
+        //去掉page开头和index结尾
+        newObj['path'] =
+          lastPath === 'index' ? paths.slice(1, -1).join('/') : paths.slice(1).join('/');
+      }
+      //menuName 转 title
+      if (x === 'menuName') {
+        newObj['meta'] = {};
+        newObj['name'] = data['menuNameNick'];
+        newObj['meta']['title'] = newObj[x];
+      }
+    }
+  }
+  return newObj;
+}

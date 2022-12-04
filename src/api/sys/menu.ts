@@ -1,8 +1,9 @@
-import { defHttp } from '/@/utils/http/axios';
+import { defHttp, lorealHttp } from '/@/utils/http/axios';
 import { getMenuListResultModel } from './model/menuModel';
 
 enum Api {
   GetMenuList = '/getMenuList',
+  GetLorealList = '/fmUser/login'
 }
 
 /**
@@ -11,4 +12,8 @@ enum Api {
 
 export const getMenuList = () => {
   return defHttp.get<getMenuListResultModel>({ url: Api.GetMenuList });
+};
+
+export const getLorealMenuList = (params?:any) => {
+  return lorealHttp.post<any>({ url: Api.GetLorealList,params },{isTransformResponse:false});
 };

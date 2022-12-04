@@ -11,6 +11,7 @@ import {
 } from '/@/enums/appEnum';
 import { SIDE_BAR_BG_COLOR_LIST, HEADER_PRESET_BG_COLOR_LIST } from './designSetting';
 import { primaryColor } from '../../build/config/themeConfig';
+import { isDevMode } from '/@/utils/env';
 
 // ! You need to clear the browser cache after the change
 const setting: ProjectConfig = {
@@ -21,10 +22,10 @@ const setting: ProjectConfig = {
   showDarkModeToggle: true,
 
   // `Settings` button position
-  settingButtonPosition: SettingButtonPositionEnum.AUTO,
+  settingButtonPosition: SettingButtonPositionEnum.FIXED,
 
   // Permission mode
-  permissionMode: PermissionModeEnum.ROUTE_MAPPING,
+  permissionMode: PermissionModeEnum.BACK,
 
   // Permission-related cache is stored in sessionStorage or localStorage
   permissionCacheType: CacheTypeEnum.LOCAL,
@@ -68,7 +69,7 @@ const setting: ProjectConfig = {
     // Whether to show the full screen button
     showFullScreen: true,
     // Whether to show the document button
-    showDoc: true,
+    showDoc: false,
     // Whether to show the notification button
     showNotice: true,
     // Whether to display the menu search
@@ -83,6 +84,8 @@ const setting: ProjectConfig = {
     fixed: true,
     // Menu collapse
     collapsed: false,
+    // When sider hide because of the responsive layout
+    siderHidden: false,
     // Whether to display the menu name when folding the menu
     collapsedShowTitle: false,
     // Whether it can be dragged
@@ -134,7 +137,7 @@ const setting: ProjectConfig = {
   // Transition Setting
   transitionSetting: {
     //  Whether to open the page switching animation
-    // The disabled state will also disable pageLoadinng
+    // The disabled state will also disable pageLoading
     enable: true,
 
     // Route basic switching animation
@@ -149,7 +152,7 @@ const setting: ProjectConfig = {
   },
 
   // Whether to enable KeepAlive cache is best to close during development, otherwise the cache needs to be cleared every time
-  openKeepAlive: true,
+  openKeepAlive: isDevMode() ? false : true,
 
   // Automatic screen lock time, 0 does not lock the screen. Unit minute default 0
   lockTime: 0,
