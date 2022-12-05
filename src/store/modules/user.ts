@@ -6,8 +6,9 @@ import { RoleEnum } from '/@/enums/roleEnum';
 import { PageEnum } from '/@/enums/pageEnum';
 import { ROLES_KEY, TOKEN_KEY, USER_INFO_KEY } from '/@/enums/cacheEnum';
 import { getAuthCache, setAuthCache } from '/@/utils/auth';
-import { GetUserInfoModel, LoginParams } from '/@/api/sys/model/userModel';
-import { doLogout, getUserInfo, loginApi } from '/@/api/sys/user';
+import { createSessionStorage } from '/@/utils/cache';
+import { GetUserInfoModel, LoginParams, RefreshParams } from '/@/api/sys/model/userModel';
+import { doLogout, getUserInfo, loginApi, refreshToken, demoLoginApi } from '/@/api/sys/user';
 import { useI18n } from '/@/hooks/web/useI18n';
 import { useMessage } from '/@/hooks/web/useMessage';
 import { router } from '/@/router';
@@ -16,7 +17,11 @@ import { RouteRecordRaw } from 'vue-router';
 import { PAGE_NOT_FOUND_ROUTE } from '/@/router/routes/basic';
 import { isArray } from '/@/utils/is';
 import { h } from 'vue';
+import { useAppStoreWithOut } from '/@/store/modules/app';
+import { PermissionModeEnum } from '/@/enums/appEnum';
 
+const ss = createSessionStorage();
+const appStore = useAppStoreWithOut();
 interface UserState {
   userInfo: Nullable<UserInfo>;
   token?: string;
@@ -90,28 +95,38 @@ export const useUserStore = defineStore({
     ): Promise<GetUserInfoModel | null> {
       try {
         const { goHome = true, mode, ...loginParams } = params;
-        const data = await loginApi(loginParams, mode);
-        const { token } = data;
-
+        const permissionMode = appStore.getProjectConfig.permissionMode;
+        const { token, user, menus, clients, refreshToken } =
+          permissionMode === PermissionModeEnum.BACK
+            ? await loginApi(loginParams, mode)
+            : await demoLoginApi(loginParams, mode);
+        //save menus、clients
+        ss.set('menus', menus);
+        ss.set('clients', clients);
+        ss.set('refresh', refreshToken);
         // save token
         this.setToken(token);
-        return this.afterLoginAction(goHome);
+        return this.afterLoginAction(goHome, user, menus);
       } catch (error) {
         return Promise.reject(error);
       }
     },
-    async afterLoginAction(goHome?: boolean): Promise<GetUserInfoModel | null> {
+    async afterLoginAction(
+      goHome?: boolean,
+      synUserInfo?: UserInfo | null,
+      fromLoginMenus?,
+    ): Promise<GetUserInfoModel | null> {
       if (!this.getToken) return null;
-      // get user info
-      const userInfo = await this.getUserInfoAction();
 
-      const sessionTimeout = this.sessionTimeout;
+      const userInfo = await this.getUserInfoAction(synUserInfo);
+
+      const sessionTimeout = this.sessionTimeout; // token time expiration
       if (sessionTimeout) {
         this.setSessionTimeout(false);
       } else {
         const permissionStore = usePermissionStore();
         if (!permissionStore.isDynamicAddedRoute) {
-          const routes = await permissionStore.buildRoutesAction();
+          const routes = await permissionStore.buildRoutesAction(fromLoginMenus);
           routes.forEach((route) => {
             router.addRoute(route as unknown as RouteRecordRaw);
           });
@@ -122,9 +137,11 @@ export const useUserStore = defineStore({
       }
       return userInfo;
     },
-    async getUserInfoAction(): Promise<UserInfo | null> {
+    async getUserInfoAction(fromLoginUserInfo?): Promise<UserInfo | null> {
       if (!this.getToken) return null;
-      const userInfo = await getUserInfo();
+      // get user info,if get userinfo from a special interface by call this.getUserInfo()
+      // userinfo would be from session or login interface or special interface
+      const userInfo = ss.get(USER_INFO_KEY) ?? fromLoginUserInfo ?? (await getUserInfo());
       const { roles = [] } = userInfo;
       if (isArray(roles)) {
         const roleList = roles.map((item) => item.value) as RoleEnum[];
@@ -135,6 +152,22 @@ export const useUserStore = defineStore({
       }
       this.setUserInfo(userInfo);
       return userInfo;
+    },
+    async refreshToken() {
+      const params: RefreshParams = {
+        refreshToken: ss.get('refresh'),
+        platForm: 'Web',
+      };
+      console.log('params:',params);
+      const {msg,obj} = await refreshToken(params);
+      if(msg!='成功'){
+        const {createErrorModal } = useMessage();
+        const { t } = useI18n();
+        createErrorModal({ title: t('sys.api.errorTip'), content: '登录已超时，请重新登录！',onOk:this.forceLogout});
+        throw new Error(t('sys.api.apiRequestFailed'))
+      }
+      this.setToken(obj);
+      return obj;
     },
     /**
      * @description: logout
@@ -152,7 +185,12 @@ export const useUserStore = defineStore({
       this.setUserInfo(null);
       goLogin && router.push(PageEnum.BASE_LOGIN);
     },
-
+    forceLogout(){
+      this.setToken(undefined);
+      this.setSessionTimeout(false);
+      this.setUserInfo(null);
+      router.push(PageEnum.BASE_LOGIN);
+    },
     /**
      * @description: Confirm before logging out
      */

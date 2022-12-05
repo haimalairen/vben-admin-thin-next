@@ -1,3 +1,4 @@
+import {uniq} from 'lodash-es'
 interface TreeHelperConfig {
   id: string;
   children: string;

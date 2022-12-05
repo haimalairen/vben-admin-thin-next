@@ -63,7 +63,7 @@
           {{ t('sys.login.qrSignInFormTitle') }}
         </Button>
       </ACol>
-      <ACol :md="7" :xs="24">
+      <ACol :md="6" :xs="24">
         <Button block @click="setLoginState(LoginStateEnum.REGISTER)">
           {{ t('sys.login.registerButton') }}
         </Button>
@@ -98,6 +98,8 @@
   import { useMessage } from '/@/hooks/web/useMessage';
 
   import { useUserStore } from '/@/store/modules/user';
+  import { useAppStore } from '/@/store/modules/app';
+  import { PermissionModeEnum } from '/@/enums/appEnum';
   import { LoginStateEnum, useLoginState, useFormRules, useFormValid } from './useLogin';
   import { useDesign } from '/@/hooks/web/useDesign';
   //import { onKeyStroke } from '@vueuse/core';
@@ -110,7 +112,8 @@
   const { notification, createErrorModal } = useMessage();
   const { prefixCls } = useDesign('login');
   const userStore = useUserStore();
-
+  const appStore = useAppStore();
+  const permissionMode = computed(() => appStore.getProjectConfig.permissionMode); 
   const { setLoginState, getLoginState } = useLoginState();
   const { getFormRules } = useFormRules();
 
@@ -119,8 +122,8 @@
   const rememberMe = ref(false);
 
   const formData = reactive({
-    account: 'vben',
-    password: '123456',
+    account: 'admin',
+    password: 'password',
   });
 
   const { validForm } = useFormValid(formRef);
@@ -134,15 +137,20 @@
     if (!data) return;
     try {
       loading.value = true;
-      const userInfo = await userStore.login({
-        password: data.password,
-        username: data.account,
+      const params = {
+        userNo: data.account,
+        pwd: data.password,
+        platForm: 'Web',
+        userCategory:'other',
+        yzmCode: '111111',
         mode: 'none', //不要默认的错误提示
-      });
+      }
+      const userInfo = await userStore.login(params);
+      console.log('userInfo:',userInfo);
       if (userInfo) {
         notification.success({
           message: t('sys.login.loginSuccessTitle'),
-          description: `${t('sys.login.loginSuccessDesc')}: ${userInfo.realName}`,
+          description: `${t('sys.login.loginSuccessDesc')}: ${userInfo.userName ?? userInfo.username}`,
           duration: 3,
         });
       }

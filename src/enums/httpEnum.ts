@@ -1,9 +1,9 @@
 /**
  * @description: Request result set
  */
-export enum ResultEnum {
-  SUCCESS = 0,
-  ERROR = 1,
+ export enum ResultEnum {
+  SUCCESS = 200,
+  ERROR = -1,
   TIMEOUT = 401,
   TYPE = 'success',
 }
@@ -19,7 +19,7 @@ export enum RequestEnum {
 }
 
 /**
- * @description:  contentTyp
+ * @description:  contentType
  */
 export enum ContentTypeEnum {
   // json
